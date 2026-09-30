@@ -22,8 +22,8 @@ var uuidCmd = handlers.NewCommand("uuid", "",
 func init() {
 	rootCmd.AddCommand(uuidCmd)
 
-	// uuidCmd.Flags().Int16VarP(&count, "count", "c", 1, "Amount of generated UUID")
-	// uuidCmd.Flags().Int16VarP(&version, "version", "v", 7, "UUID version")
+	uuidCmd.Flags.Int16(&count, "count", "c", 1, "Amount of generated UUID")
+	uuidCmd.Flags.Int16(&version, "version", "v", 7, "UUID version")
 }
 
 func runUuidGen() error {

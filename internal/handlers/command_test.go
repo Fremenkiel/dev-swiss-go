@@ -1,16 +1,13 @@
 package handlers
 
 import (
-	"bytes"
-	"io"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 )
 
 func TestAddCommand(t *testing.T) {
-	t.Run("Add command", func(t *testing.T) {
+	t.Run("add_command", func(t *testing.T) {
 		c := &Command{
 			Name: "test_command",
 			Description: "A command to test on",
@@ -44,7 +41,7 @@ func TestAddCommand(t *testing.T) {
 			)
 	})
 
-	t.Run("Add command as child", func(t *testing.T) {
+	t.Run("add_command_as_child", func(t *testing.T) {
 		c := &Command{
 			Name: "test_command",
 			Description: "A command to test on",
@@ -78,7 +75,7 @@ func TestAddCommand(t *testing.T) {
 			)
 	})
 
-	t.Run("Add parent as child", func(t *testing.T) {
+	t.Run("add_parent_as_child", func(t *testing.T) {
 		c := &Command{
 			Name: "test_command",
 			Description: "A command to test on",
@@ -118,7 +115,7 @@ func TestAddCommand(t *testing.T) {
 			)
 	})
 
-	t.Run("Add child two times", func(t *testing.T) {
+	t.Run("add_child_two_times", func(t *testing.T) {
 		c := &Command{
 			Name: "test_command",
 			Description: "A command to test on",
@@ -161,162 +158,144 @@ func TestAddCommand(t *testing.T) {
 }
 
 func TestRunCommand(t *testing.T) {
-	t.Run("Run command", func(t *testing.T) {
-		c := &Command{
-			Name: "test_command",
-			Description: "A command to test on",
-			Run: func(args []string) error { return nil },
-			parent: nil,
-			children: map[string]*Command{
-				"run_command": {
-				Name: "child_command_1",
-				Description: "The first child command",
+	tests := []struct{
+		name				string
+		args				[]string
+		child				func() *Command
+		expectHelp	bool
+		expectError	bool
+	}{
+		{
+			name: "run_command",
+			args: []string{"devswiss", "run_command"},
+			child: func() *Command {
+				return &Command{
+					Name: "child_command_1",
+					Description: "The first child command",
+					Run: func(args []string) error { return nil },
+					parent: nil,
+					children: make(map[string]*Command),
+				}
+			},
+			expectHelp: false,
+			expectError: false,
+		},
+		{
+			name: "run_unknown_command", 
+			args: []string{"devswiss", "unknown_command"},
+			child: func() *Command {
+				return &Command{
+					Name: "child_command_1",
+					Description: "The first child command",
+					Run: func(args []string) error { return nil },
+					parent: nil,
+					children: make(map[string]*Command),
+				}
+			},
+			expectHelp: false,
+			expectError: true,
+		},
+		{
+			name: "run_command_help_flag",
+			args: []string{"devswiss", "run_command", "-h"},
+			child: func() *Command {
+				return NewCommand("run_command", "The first child command", func(args []string) error { return nil })
+			},
+			expectHelp: true,
+			expectError: false,
+		},
+	}
+
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			defer func(args []string, stdout *os.File) {
+				cleanupEnv(args, stdout)
+			}(os.Args, os.Stdout)
+
+			r, w, wg, buf := setupEnv(t, tests[i].args)
+			defer func() {
+				r.Close()
+			}()
+
+			c := &Command{
+				Name: "test_command",
+				Description: "A command to test on",
 				Run: func(args []string) error { return nil },
 				parent: nil,
-				children: make(map[string]*Command),
-			},
-			},
-		}
+				children: map[string]*Command{
+					"run_command": tests[i].child(),
+				},
+			}
 
-		args := []string{
-			"run_command",
-		}
+			if err := c.RunCommand(os.Args[1:]); err != nil && !tests[i].expectError {
+				t.Errorf("Unexpected error: %v", err)
+			}
 
-		if err := c.RunCommand(args); err != nil {
-			t.Errorf("Unexpected error: %v", err)
-		}
-	})
+			w.Close()
+			wg.Wait()
 
-	t.Run("Run unknown command", func(t *testing.T) {
-		c := &Command{
-			Name: "test_command",
-			Description: "A command to test on",
-			Run: func(args []string) error { return nil },
-			parent: nil,
-			children: map[string]*Command{
-				"run_command": {
-				Name: "child_command_1",
-				Description: "The first child command",
-				Run: func(args []string) error { return nil },
-				parent: nil,
-				children: make(map[string]*Command),
-			},
-			},
-		}
-
-		args := []string{
-			"unknown_command",
-		}
-
-		if err := c.RunCommand(args); err == nil {
-			t.Error("Expected error, got none")
-		}
-	})
+			if strings.Contains(buf.String(), "Usage") != tests[i].expectHelp {
+				t.Errorf("Incorrect stdout output, expected %v, buffer string: %s", tests[i].expectHelp, buf.String())
+			}
+		})
+	}
 }
 
-
 func TestExcecute(t *testing.T) {
-	t.Run("Excecute", func(t *testing.T) {
-		c := &Command{
-			Name: "test_command",
-			Description: "A command to test on",
-			Run: func(args []string) error { return nil },
-			parent: nil,
-			children: map[string]*Command{
-				"run_command": {
-				Name: "child_command_1",
-				Description: "The first child command",
+	tests := []struct{
+		name				string
+		args				[]string
+		expectHelp	bool
+	}{
+		{
+			name: "excecute",
+			args: []string{"devswiss", "run_command"},
+			expectHelp: false,
+		},
+		{
+			name: "excecute_unknown_command",
+			args: []string{"devswiss", "unknown_command"},
+			expectHelp: true,
+		},
+	}
+
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			defer func(args []string, stdout *os.File) {
+				cleanupEnv(args, stdout)
+			}(os.Args, os.Stdout)
+
+			r, w, wg, buf := setupEnv(t, tests[i].args)
+			defer func() {
+				r.Close()
+			}()
+
+			c := &Command{
+				Name: "test_command",
+				Description: "A command to test on",
 				Run: func(args []string) error { return nil },
 				parent: nil,
-				children: make(map[string]*Command),
-			},
-			},
-		}
+				children: map[string]*Command{
+					"run_command": {
+						Name: "child_command_1",
+						Description: "The first child command",
+						Run: func(args []string) error { return nil },
+						parent: nil,
+						children: make(map[string]*Command),
+					},
+				},
+			}
 
-		orgArgs := os.Args
-		defer func() { os.Args = orgArgs }()
+			if err := c.Execute(); err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
 
-		orgStout := os.Stdout
+			w.Close()
+			wg.Wait()
 
-		defer func() { os.Stdout = orgStout }()
-
-		r, w, err := os.Pipe()
-		if err != nil {
-			t.Errorf("Unable to create pipe")
-		}
-		defer func() { 
-			r.Close()
-		}()
-
-		var buf bytes.Buffer
-		var wg sync.WaitGroup
-
-		wg.Go(func() {
-			io.Copy(&buf, r)
+			if strings.Contains(buf.String(), "Usage") != tests[i].expectHelp {
+				t.Errorf("Error when executing, buffer string: %s", buf.String())
+			}
 		})
-
-		os.Args = []string{"devswiss", "run_command", "data.json"}
-		os.Stdout = w
-
-		if err := c.Execute(); err != nil {
-			t.Errorf("Unexpected error: %v", err)
-		}
-
-		w.Close()
-		wg.Wait()
-
-		if strings.Contains(buf.String(), "helper") {
-			t.Errorf("Error when executing, buffer string: %s", buf.String())
-		}
-	})
-
-	t.Run("Excecute unknown command", func(t *testing.T) {
-		c := &Command{
-			Name: "test_command",
-			Description: "A command to test on",
-			Run: func(args []string) error { return nil },
-			parent: nil,
-			children: map[string]*Command{
-				"run_command": {
-				Name: "child_command_1",
-				Description: "The first child command",
-				Run: func(args []string) error { return nil },
-				parent: nil,
-				children: make(map[string]*Command),
-			},
-			},
-		}
-
-		originalArgs := os.Args
-		defer func() { os.Args = originalArgs }()
-
-		r, w, err := os.Pipe()
-		if err != nil {
-			t.Errorf("Unable to create pipe")
-		}
-		defer func() { 
-			r.Close()
-		}()
-
-		var buf bytes.Buffer
-		var wg sync.WaitGroup
-
-		wg.Go(func() {
-			io.Copy(&buf, r)
-		})
-
-		os.Args = []string{"devswiss", "unknown_command", "data.json"}
-		os.Stdout = w
-
-		if err := c.Execute(); err != nil {
-			t.Errorf("Unexpected error: %v", err)
-		}
-
-		w.Close()
-		wg.Wait()
-
-		if !strings.Contains(buf.String(), "Usage") {
-			t.Errorf("Error when executing, buffer string: %s", buf.String())
-		}
-	})
+	}
 }
