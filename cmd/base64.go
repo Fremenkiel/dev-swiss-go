@@ -5,26 +5,18 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
+	"github.com/fremenkiel/dev-swiss-go/internal/handlers"
 )
 
-var base64EncodeCmd = &cobra.Command{
-	Use:		"base64-encode",
-	Short:	"",
-	Long:		"",
-	RunE:		func(cmd *cobra.Command, args []string) error {
+var base64EncodeCmd = handlers.NewCommand("base64-encode", "",
+	func(args []string) error {
 		return runBase64Encode(args)
-	},
-}
+	})
 
-var base64DecodeCmd = &cobra.Command{
-	Use:		"base64-decode",
-	Short:	"",
-	Long:		"",
-	RunE:		func(cmd *cobra.Command, args []string) error {
+var base64DecodeCmd = handlers.NewCommand("base64-decode", "",
+	func(args []string) error {
 		return runBase64Decode(args)
-	},
-}
+	})
 
 func init() {
 	rootCmd.AddCommand(base64EncodeCmd)

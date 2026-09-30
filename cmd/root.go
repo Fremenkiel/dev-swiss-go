@@ -4,14 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
+	"github.com/fremenkiel/dev-swiss-go/internal/handlers"
 )
 
-var rootCmd = &cobra.Command{
-	Use:		"devswiss",
-	Short:	"Dev tools",
-	Long: 	"A combination as everyday dev tools.",
-}
+var rootCmd = handlers.NewCommand("devswiss", "A combination as everyday dev tools.", nil)
 
 func Excecute() {
 	if err := rootCmd.Execute(); err != nil {

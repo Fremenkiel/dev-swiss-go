@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fremenkiel/dev-swiss-go/internal/handlers"
 	"github.com/fremenkiel/dev-swiss-go/internal/helpers"
 	"github.com/google/uuid"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -14,20 +14,16 @@ var (
 	version int16
 )
 
-var uuidCmd = &cobra.Command{
-	Use:		"uuid",
-	Short:	"",
-	Long:		"",
-	RunE:		func(cmd *cobra.Command, args []string) error {
+var uuidCmd = handlers.NewCommand("uuid", "",
+	func(args []string) error {
 		return runUuidGen()
-	},
-}
+	})
 
 func init() {
 	rootCmd.AddCommand(uuidCmd)
 
-	uuidCmd.Flags().Int16VarP(&count, "count", "c", 1, "Amount of generated UUID")
-	uuidCmd.Flags().Int16VarP(&version, "version", "v", 7, "UUID version")
+	// uuidCmd.Flags().Int16VarP(&count, "count", "c", 1, "Amount of generated UUID")
+	// uuidCmd.Flags().Int16VarP(&version, "version", "v", 7, "UUID version")
 }
 
 func runUuidGen() error {
